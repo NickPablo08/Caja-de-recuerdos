@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cajón de recuerdos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --linen:#EDE6D8;
+    --paper:#FBF8F1;
+    --paper-2:#F5EFE3;
+    --ink:#3B322B;
+    --ink-soft:#7A6F62;
+    --rose:#C17B84;
+    --rose-tint:#F1DCDF;
+    --sage:#7E9179;
+    --sage-tint:#E1E7DB;
+    --ochre:#BE9142;
+    --ochre-tint:#EFE0BE;
+    --line:#DBD0BE;
+    --shadow: 58, 50, 44;
+    --radius: 16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--linen);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  h1,h2,h3{font-family:'Fraunces',serif; margin:0; font-weight:600; letter-spacing:-0.01em;}
+  p{margin:0;}
+  button{font-family:inherit;}
+  input,textarea,select{font-family:inherit; font-size:1rem;}
+  a{color:var(--rose);}
+  ::selection{background:var(--rose-tint);}
+
+  #grain{
+    position:fixed; inset:0; pointer-events:none; z-index:1;
+    opacity:0.05; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .eyebrow{
+    font-family:'Space Mono',monospace;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- screens ---------- */
+  .screen{
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px 20px;
+    position:relative; z-index:2;
+  }
+  [hidden]{display:none !important;}
+
+  .cover-inner{ text-align:center; max-width:420px; }
+  .cover-inner .eyebrow{ display:block; margin-bottom:18px; }
+  .cover-inner h1{ font-size:clamp(2.1rem,7vw,2.9rem); margin-bottom:14px; }
+  .cover-inner .sub{ color:var(--ink-soft); font-size:1.02rem; line-height:1.55; margin-bottom:30px; }
+  .drawer-art{ width:180px; height:auto; margin:0 auto 26px; display:block; }
+  .drawer-art .float{ animation:bob 4.5s ease-in-out infinite; transform-origin:center; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-3px);} }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    font-family:'Space Mono',monospace;
+    font-size:0.78rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    padding:13px 26px;
+    border-radius:999px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(var(--shadow),0.18); }
+  .btn:active{ transform:translateY(0); }
+  .btn-ghost{
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+  }
+  .btn-ghost:hover{ border-color:var(--ink); box-shadow:none; }
+  .btn-small{ padding:8px 16px; font-size:0.68rem; }
+  .btn:focus-visible, .tab:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, .icon-btn:focus-visible{
+    outline:2px solid var(--rose); outline-offset:2px;
+  }
+
+  /* ---------- paper card / gate ---------- */
+  .paper-card{
+    background:var(--paper);
+    border-radius:var(--radius);
+    padding:30px 26px;
+    box-shadow:0 14px 34px rgba(var(--shadow),0.14);
+    max-width:380px; width:100%;
+  }
+  .paper-card h2{ font-size:1.4rem; margin-bottom:6px; }
+  .paper-card .hint{ color:var(--ink-soft); font-size:0.88rem; margin-bottom:20px; line-height:1.5; }
+  .field{ margin-bottom:16px; text-align:left; }
+  .field label{
+    display:block; font-family:'Space Mono',monospace; font-size:0.68rem;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:6px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%; padding:11px 13px; border-radius:10px;
+    border:1px solid var(--line); background:var(--paper-2); color:var(--ink);
+  }
+  .field textarea{ resize:vertical; min-height:70px; line-height:1.5; }
+  .field .note{ font-size:0.74rem; color:var(--ink-soft); margin-top:5px; }
+  .error-msg{
+    background:var(--rose-tint); color:#8a3f48; padding:9px 12px; border-radius:8px;
+    font-size:0.82rem; margin-bottom:14px; display:none;
+  }
+  .shake{ animation:shake .4s; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+
+  /* ---------- app shell ---------- */
+  #app{ position:relative; z-index:2; min-height:100vh; padding-bottom:60px; }
+  header.top{
+    position:sticky; top:0; z-index:5;
+    background:rgba(237,230,216,0.92); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:16px 18px 0;
+  }
+  .brand-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .brand{
+    font-family:'Space Mono',monospace; font-size:0.72rem; letter-spacing:0.08em;
+    color:var(--ink-soft); text-transform:uppercase;
+  }
+  .tabs{
+    display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; padding-bottom:0;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab{
+    flex:0 0 auto; cursor:pointer; border:1px solid var(--line); border-bottom:none;
+    background:var(--linen); color:var(--ink-soft);
+    padding:10px 16px; border-radius:10px 10px 0 0;
+    font-family:'Space Mono',monospace; font-size:0.7rem; letter-spacing:0.05em; text-transform:uppercase;
+    display:flex; align-items:center; gap:6px; white-space:nowrap;
+    transform:translateY(1px);
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab svg{ width:14px; height:14px; }
+  .tab.active{
+    background:var(--paper); color:var(--ink); border-color:var(--line);
+    box-shadow:0 -4px 10px rgba(var(--shadow),0.06);
+    transform:translateY(0);
+  }
+  main#tabContent{ max-width:760px; margin:0 auto; padding:28px 18px 40px; }
+
+  .section-header{ display:flex; align-items:flex-start; gap:12px; margin-bottom:22px; }
+  .section-header .icon{ width:30px; height:30px; flex:0 0 auto; color:var(--rose); margin-top:2px; }
+  .section-header h2{ font-size:1.55rem; margin-bottom:4px; }
+  .section-header .cap{ color:var(--ink-soft); font-size:0.9rem; }
+
+  .stats-row{
+    font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--ink-soft);
+    letter-spacing:0.03em; margin-top:22px; padding-top:16px; border-top:1px dashed var(--line);
+  }
+
+  .add-toggle{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    background:transparent; border:1px dashed var(--ink-soft); color:var(--ink);
+    padding:10px 18px; border-radius:999px; font-family:'Space Mono',monospace;
+    font-size:0.74rem; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:20px;
+    transition:background .15s ease;
+  }
+  .add-toggle:hover{ background:var(--paper); }
+  .add-form{
+    background:var(--paper); border-radius:var(--radius); padding:20px;
+    margin-bottom:26px; box-shadow:0 8px 20px rgba(var(--shadow),0.08);
+  }
+  .add-form .row{ display:flex; gap:12px; flex-wrap:wrap; }
+  .add-form .row .field{ flex:1 1 140px; }
+  .form-actions{ display:flex; gap:10px; margin-top:4px; }
+
+  .empty-state{
+    text-align:center; padding:40px 18px; color:var(--ink-soft);
+    border:1px dashed var(--line); border-radius:var(--radius); font-size:0.94rem; line-height:1.6;
+  }
+  .empty-state svg{ width:34px; height:34px; margin-bottom:12px; color:var(--line); }
+
+  .icon-btn{
+    border:none; background:transparent; cursor:pointer; color:var(--ink-soft);
+    width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    transition:background .15s ease, color .15s ease;
+  }
+  .icon-btn:hover{ background:var(--paper-2); color:var(--ink); }
+  .icon-btn svg{ width:15px; height:15px; }
+
+  .confirm-row{
+    display:flex; align-items:center; gap:8px; font-family:'Space Mono',monospace; font-size:0.68rem;
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .confirm-row button{ border:none; background:none; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .confirm-row .yes{ color:#8a3f48; }
+  .confirm-row .no{ color:var(--ink-soft); }
+  .confirm-row .yes:hover, .confirm-row .no:hover{ background:var(--paper-2); }
+
+  /* ---------- momentos (polaroid grid) ---------- */
+  .grid-photos{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:22px 16px;
+  }
+  .card-photo{
+    background:var(--paper); padding:10px 10px 14px; border-radius:4px;
+    box-shadow:0 10px 22px rgba(var(--shadow),0.16);
+    position:relative; transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .card-photo:hover{ transform:rotate(0deg) scale(1.02); box-shadow:0 14px 28px rgba(var(--shadow),0.22); z-index:2; }
+  .card-photo .washi{
+    position:absolute; top:-8px; left:50%; width:52px; height:18px;
+    background:rgba(190,145,66,0.55); transform:translateX(-50%) rotate(-2deg);
+  }
+  .card-photo img{ width:100%; display:block; border-radius:2px; aspect-ratio:1/1; object-fit:cover; background:var(--paper-2); }
+  .card-photo .cap{ padding-top:10px; }
+  .card-photo .cap .ttl{ font-family:'Fraunces',serif; font-size:1rem; margin-bottom:2px; }
+  .card-photo .cap .dt{ font-family:'Space Mono',monospace; font-size:0.64rem; color:var(--ink-soft); text-transform:uppercase; }
+  .card-photo .cap .desc{ font-size:0.85rem; color:var(--ink-soft); margin-top:6px; line-height:1.45; }
+  .card-photo .del{ position:absolute; top:6px; right:6px; background:rgba(251,248,241,0.9); border-radius:50%; }
+
+  /* ---------- notas ---------- */
+  .list-notes{ display:flex; flex-direction:column; gap:16px; }
+  .card-note{
+    background:var(--paper); border-radius:var(--radius); padding:20px 22px;
+    box-shadow:0 8px 20px rgba(var(--shadow),0.08); position:relative;
+    border-left:4px solid var(--author-color, var(--rose));
+  }
+  .card-note .meta-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:10px; }
+  .author-tag{
+    font-family:'Space Mono',monospace; font-size:0.66rem; letter-spacing:0.05em; text-transform:uppercase;
+    color:var(--author-color, var(--rose)); display:flex; align-items:center; gap:6px;
+  }
+  .author-tag::before{ content:''; width:7px; height:7px; border-radius:50%; background:var(--author-color, var(--rose)); }
+  .card-note .dt{ font-family:'Space Mono',monospace; font-size:0.64rem; color:var(--ink-soft); }
+  .card-note h3{ font-size:1.08rem; margin-bottom:6px; }
+  .card-note .body{ font-size:0.94rem; line-height:1.65; color:var(--ink); white-space:pre-wrap; }
+
+  /* ---------- musica (tickets) ---------- */
+  .list-songs{ display:flex; flex-direction:column; gap:14px; }
+  .card-song{
+    background:var(--paper); border-radius:12px; padding:16px 18px;
+    box-shadow:0 8px 20px rgba(var(--shadow),0.08);
+    border-left:2px dashed var(--line);
+  }
+  .card-song .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .card-song .no{ font-family:'Space Mono',monospace; font-size:0.66rem; color:var(--ochre); letter-spacing:0.04em; }
+  .card-song .ttl{ font-family:'Fraunces',serif; font-size:1.08rem; margin-top:2px; }
+  .card-song .artist{ font-size:0.85rem; color:var(--ink-soft); margin-top:1px; }
+  .card-song .why{ font-size:0.86rem; color:var(--ink); margin-top:8px; line-height:1.5; font-style:italic; }
+  .card-song .embed-wrap{ margin-top:12px; border-radius:8px; overflow:hidden; }
+  .card-song .listen-link{
+    display:inline-flex; align-items:center; gap:6px; margin-top:10px;
+    font-family:'Space Mono',monospace; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--sage); text-decoration:none;
+  }
+  .card-song .listen-link svg{ width:12px; height:12px; }
+
+  /* ---------- lo que me gusta (tags) ---------- */
+  .tags-wrap{ display:flex; flex-wrap:wrap; gap:14px; }
+  .tag-like{
+    background:var(--tint,var(--rose-tint)); border-radius:16px; padding:16px 18px;
+    max-width:280px; box-shadow:0 6px 16px rgba(var(--shadow),0.08);
+  }
+  .tag-like .phrase{ font-family:'Fraunces',serif; font-style:italic; font-size:1.05rem; line-height:1.4; }
+  .tag-like .meta-row{ display:flex; justify-content:space-between; margin-top:10px; align-items:center; }
+  .tag-like .who{ font-family:'Space Mono',monospace; font-size:0.64rem; text-transform:uppercase; color:var(--ink-soft); }
+
+  /* ---------- futuro (luggage tags) ---------- */
+  .list-plans{ display:flex; flex-direction:column; gap:10px; }
+  .card-plan{
+    display:flex; align-items:flex-start; gap:12px;
+    background:var(--paper); border-radius:12px; padding:14px 16px;
+    box-shadow:0 6px 16px rgba(var(--shadow),0.07);
+  }
+  .card-plan.done{ opacity:0.55; }
+  .card-plan.done .txt{ text-decoration:line-through; }
+  .chk{
+    width:20px; height:20px; border-radius:50%; border:1.5px solid var(--sage); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; margin-top:2px; background:var(--paper);
+  }
+  .chk svg{ width:12px; height:12px; opacity:0; transition:opacity .15s ease; color:var(--sage); }
+  .card-plan.done .chk{ background:var(--sage); }
+  .card-plan.done .chk svg{ opacity:1; color:var(--paper); }
+  .card-plan .txt{ font-size:0.95rem; line-height:1.5; flex:1; }
+  .card-plan .dt{ font-family:'Space Mono',monospace; font-size:0.62rem; color:var(--ink-soft); display:block; margin-top:4px; }
+
+  /* ---------- inicio ---------- */
+  .home-hero{ text-align:left; margin-bottom:8px; }
+  .home-hero h1{ font-size:clamp(1.9rem,6vw,2.5rem); margin-bottom:8px; }
+  .home-hero .intro{ font-size:1.02rem; color:var(--ink); line-height:1.6; max-width:52ch; }
+  .home-hero .motto{ font-style:italic; color:var(--ink-soft); margin-top:14px; font-family:'Fraunces',serif; font-size:1.05rem; }
+  .home-hero .since{ margin-top:16px; }
+  .edit-row{ margin-top:16px; }
+
+  @media (min-width:640px){
+    .grid-photos{ grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); }
+    main#tabContent{ padding:36px 24px 50px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="grain"></div>
+
+<!-- COVER -->
+<div class="screen" id="cover">
+  <div class="cover-inner">
+    <span class="eyebrow">un cajón compartido</span>
+    <svg class="drawer-art" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="float">
+        <rect x="66" y="26" width="24" height="18" rx="2" transform="rotate(-9 78 35)" stroke="#C17B84" stroke-width="1.6"/>
+        <path d="M118 32 c-4-6-12-4-12 2 c0 5 12 12 12 12 s12-7 12-12 c0-6-8-8-12-2z" stroke="#BE9142" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M44 44 q6-8 12 0 q6 8 12 0" stroke="#7E9179" stroke-width="1.5" stroke-linecap="round"/>
+      </g>
+      <rect x="32" y="58" width="136" height="10" fill="#3B322B" opacity="0.12"/>
+      <rect x="28" y="64" width="144" height="58" rx="7" fill="#FBF8F1" stroke="#3B322B" stroke-width="1.6"/>
+      <rect x="82" y="88" width="36" height="7" rx="3.5" fill="#7A6F62"/>
+    </svg>
+    <h1>Cajón de recuerdos</h1>
+    <p class="sub">Esto recién empieza. Un lugar chiquito para ir guardando lo que vayamos viviendo, desde el principio.</p>
+    <button class="btn" id="btnOpenCover">Abrir el cajón</button>
+  </div>
+</div>
+
+<!-- GATE (onboarding / passphrase) -->
+<div class="screen" id="gateWrap" hidden>
+  <div class="paper-card" id="gateCard"></div>
+</div>
+
+<!-- APP -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="brand-row">
+      <div class="brand" id="brandLabel">cajón</div>
+      <button class="btn btn-ghost btn-small" id="btnSignOut">salir</button>
+    </div>
+    <nav class="tabs" id="tabsNav"></nav>
+  </header>
+  <main id="tabContent"></main>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  collection, query, orderBy, onSnapshot, arrayUnion
+} from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+import {
+  getStorage, ref, uploadString, getDownloadURL, deleteObject
+} from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-storage.js';
+
+/* =====================================================================
+   1) PEGÁ ACÁ LA CONFIGURACIÓN DE TU PROYECTO DE FIREBASE
+   La sacás de: Configuración del proyecto > tus apps > app web (</>)
+   Ver README.md para el paso a paso completo.
+===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCG2C1K9jZzntV_P093BWtPGuK9w3UGm9Q",
+  authDomain: "ourbox28.firebaseapp.com",
+  projectId: "ourbox28",
+  storageBucket: "ourbox28.firebasestorage.app",
+  messagingSenderId: "289992035305",
+  appId: "1:289992035305:web:d5fb82a46aadc837f15978"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+window.firebaseDB = db;
+const storage = getStorage(fbApp);
+
+/* ---------------- utils ---------------- */
+function esc(str){
+  return String(str==null?'':str).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function nl2br(str){ return esc(str).replace(/\n/g,'<br>'); }
+function uid(){ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+function formatTs(ts){
+  try{ return new Date(ts).toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'}); }
+  catch(e){ return ''; }
+}
+function formatDateStr(str){
+  if(!str) return '';
+  try{ return new Date(str+'T00:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'}); }
+  catch(e){ return str; }
+}
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* ---------------- icons ---------------- */
+const ICON = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></svg>',
+  photo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M21 17l-5.5-5-4 4-2-2L3 19"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 6l8 7 8-7"/></svg>',
+  music:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-9.5-8.8C.7 7.6 2.6 4 6.2 4 8.4 4 10 5.1 12 7.4 14 5.1 15.6 4 17.8 4c3.6 0 5.5 3.6 3.7 7.2C19 15.6 12 20 12 20z"/></svg>',
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7"/><path d="M9 4v13M15 7v13"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6"/><path d="M13 5l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M11 19l-1 1a4 4 0 0 1-6-6l1-1"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>'
+};
+
+const TABS = [
+  {id:'inicio', label:'Inicio', icon:ICON.home},
+  {id:'momentos', label:'Momentos', icon:ICON.photo},
+  {id:'notas', label:'Notas', icon:ICON.mail},
+  {id:'musica', label:'Música', icon:ICON.music},
+  {id:'gustos', label:'Me gusta de vos', icon:ICON.heart},
+  {id:'futuro', label:'Futuro', icon:ICON.map}
+];
+const AUTHOR_COLORS = ['var(--rose)','var(--sage)'];
+const TINTS = ['var(--rose-tint)','var(--sage-tint)','var(--ochre-tint)'];
+const COLLECTIONS = { momentos:'moments', notas:'notes', canciones:'songs', gustos:'likes', planes:'plans' };
+
+/* ---------------- state ---------------- */
+const state = {
+  meta:null,
+  tab:'inicio',
+  momentos:[], notas:[], canciones:[], gustos:[], planes:[],
+  loaded:{},
+  listenersStarted:false
+};
+
+/* ---------------- image compression ---------------- */
+function compressImage(file, maxDim, quality){
+  maxDim = maxDim||1000; quality = quality||0.75;
+  return new Promise(function(resolve,reject){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        let w = img.width, h = img.height;
+        if(w>h && w>maxDim){ h = Math.round(h*maxDim/w); w = maxDim; }
+        else if(h>=w && h>maxDim){ w = Math.round(w*maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------------- firestore / storage helpers ---------------- */
+async function fGetMeta(){
+  try{ const snap = await getDoc(doc(db,'meta','config')); return snap.exists() ? snap.data() : null; }
+  catch(e){ console.error('fGetMeta', e); return null; }
+}
+async function fSetMeta(data){
+  try{ await setDoc(doc(db,'meta','config'), data); return true; }
+  catch(e){ console.error('fSetMeta', e); return false; }
+}
+async function fUpdateMeta(patch){
+  try{ await updateDoc(doc(db,'meta','config'), patch); return true; }
+  catch(e){ console.error('fUpdateMeta', e); return false; }
+}
+async function fAdd(col, id, data){
+  try{ await setDoc(doc(db,col,id), data); return true; }
+  catch(e){ console.error('fAdd', col, e); return false; }
+}
+async function fUpdate(col, id, patch){
+  try{ await updateDoc(doc(db,col,id), patch); return true; }
+  catch(e){ console.error('fUpdate', col, e); return false; }
+}
+async function fDelete(col, id){
+  try{ await deleteDoc(doc(db,col,id)); return true; }
+  catch(e){ console.error('fDelete', col, e); return false; }
+}
+
+function authorName(uidVal){
+  return (state.meta && state.meta.names && state.meta.names[uidVal]) || 'Alguien';
+}
+function authorColorVar(uidVal){
+  const order = (state.meta && state.meta.order) || [];
+  const idx = order.indexOf(uidVal);
+  return AUTHOR_COLORS[idx>=0 ? idx%2 : 0];
+}
+
+/* ---------------- realtime listeners ---------------- */
+let unsubList = [];
+function startListeners(){
+  unsubList.forEach(function(u){ u(); });
+  unsubList = [];
+  Object.keys(COLLECTIONS).forEach(function(section){
+    const q = query(collection(db, COLLECTIONS[section]), orderBy('createdAt','desc'));
+    const unsub = onSnapshot(q, function(snap){
+      state[section] = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+      state.loaded[section] = true;
+      if(state.tab === sectionToTab(section)) renderCurrentTab();
+      if(state.tab === 'inicio') renderInicio();
+    }, function(err){ console.error('listener error', section, err); });
+    unsubList.push(unsub);
+  });
+  const unsubMeta = onSnapshot(doc(db,'meta','config'), function(snap){
+    if(snap.exists()){
+      state.meta = snap.data();
+      updateBrand();
+      if(state.tab==='inicio') renderInicio();
+      else renderCurrentTab();
+    }
+  });
+  unsubList.push(unsubMeta);
+}
+function sectionToTab(s){
+  return {momentos:'momentos', notas:'notas', canciones:'musica', gustos:'gustos', planes:'futuro'}[s];
+}
+function tabToSection(t){
+  return {momentos:'momentos', notas:'notas', musica:'canciones', gustos:'gustos', futuro:'planes'}[t];
+}
+function renderCurrentTab(){
+  if(state.tab==='momentos') renderMomentos();
+  else if(state.tab==='notas') renderNotas();
+  else if(state.tab==='musica') renderMusica();
+  else if(state.tab==='gustos') renderGustos();
+  else if(state.tab==='futuro') renderFuturo();
+}
+
+/* ---------------- auth: login ---------------- */
+const gateCard = document.getElementById('gateCard');
+
+function renderLoginForm(){
+  gateCard.innerHTML =
+    '<span class="eyebrow">entrar al cajón</span>'+
+    '<h2 style="margin-top:8px;">Iniciar sesión</h2>'+
+    '<p class="hint">Con la cuenta que armaron para este cajón.</p>'+
+    '<div class="error-msg" id="loginError"></div>'+
+    '<div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>'+
+    '<div class="field"><label>Contraseña</label><input type="password" id="loginPass" autocomplete="current-password"></div>'+
+    '<button class="btn" id="loginSubmit" style="width:100%;">Entrar</button>';
+  document.getElementById('loginSubmit').addEventListener('click', doLogin);
+  document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+}
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginSubmit');
+  const err = document.getElementById('loginError');
+  
+  if (err) err.style.display = 'none';
+  if (btn) { btn.textContent = 'Entrando…'; btn.disabled = true; }
+  
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+  }catch(e){
+    if (err) {
+      err.textContent = 'Ese email o esa contraseña no son correctos.';
+      err.style.display = 'block';
+    }
+    const gateCard = document.getElementById('gateCard') || document.querySelector('.gate-card');
+    if (gateCard) {
+      gateCard.classList.add('shake');
+      setTimeout(function(){ gateCard.classList.remove('shake'); }, 400);
+    }
+    if (btn) { btn.textContent = 'Entrar'; btn.disabled = false; }
+  }
+}
+
+// Aseguramos que el formulario use esta función al enviarse
+document.addEventListener('submit', function(e) {
+  if (e.target && e.target.id === 'loginForm') {
+    e.preventDefault();
+    doLogin();
+  }
+});
+
+document.getElementById('btnOpenCover').addEventListener('click', function(){
+  document.getElementById('cover').hidden = true;
+  document.getElementById('gateWrap').hidden = false;
+  renderLoginForm();
+});
+
+if (document.getElementById('btnSignOut')) {
+  document.getElementById('btnSignOut').addEventListener('click', async function(){
+    const { getAuth, signOut } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+    await signOut(getAuth());
+    location.reload();
+  });
+}
+/* ---------------- auth: onboarding (nombre + mensaje) ---------------- */
+function showNameOnboarding(user, isFirst){
+  document.getElementById('cover').hidden = true;
+  document.getElementById('gateWrap').hidden = false;
+  gateCard.innerHTML = isFirst
+    ? ('<span class="eyebrow">antes de empezar</span><h2 style="margin-top:8px;">Armemos el cajón</h2>'+
+       '<p class="hint">Sos la primera persona en entrar. Elegí cómo te van a ver acá y dejá un mensaje de bienvenida.</p>'+
+       '<div class="field"><label>Tu nombre</label><input type="text" id="obName" placeholder="Tu nombre"></div>'+
+       '<div class="field"><label>Mensaje de bienvenida (opcional)</label><textarea id="obIntro">Esto recién empieza.</textarea></div>'+
+       '<button class="btn" id="obSubmit" style="width:100%;">Crear nuestro cajón</button>')
+    : ('<span class="eyebrow">falta poco</span><h2 style="margin-top:8px;">¿Cómo te llamás?</h2>'+
+       '<p class="hint">Así vas a aparecer en lo que escribas.</p>'+
+       '<div class="field"><input type="text" id="obName" placeholder="Tu nombre"></div>'+
+       '<button class="btn" id="obSubmit" style="width:100%;">Entrar al cajón</button>');
+
+  document.getElementById('obSubmit').addEventListener('click', async function(){
+    const name = document.getElementById('obName').value.trim();
+    if(!name) return;
+    if(isFirst){
+      const intro = document.getElementById('obIntro').value.trim() || 'Esto recién empieza.';
+      const names = {}; names[user.uid] = name;
+      const meta = { order:[user.uid], names:names, intro:intro, createdAt:Date.now() };
+      await fSetMeta(meta);
+      state.meta = meta;
+    } else {
+      const patch = {}; patch['names.'+user.uid] = name;
+      patch.order = arrayUnion(user.uid);
+      await fUpdateMeta(patch);
+      state.meta.names = Object.assign({}, state.meta.names);
+      state.meta.names[user.uid] = name;
+      state.meta.order = (state.meta.order||[]).concat([user.uid]);
+    }
+    enterApp();
+  });
+}
+
+async function handleAuthedUser(user){
+  const meta = await fGetMeta();
+  if(!meta){ showNameOnboarding(user, true); return; }
+  if(!meta.names || !meta.names[user.uid]){ state.meta = meta; showNameOnboarding(user, false); return; }
+  state.meta = meta;
+  enterApp();
+}
+
+onAuthStateChanged(auth, function(user){
+  if(user) handleAuthedUser(user);
+});
+
+/* ---------------- app entry ---------------- */
+function enterApp(){
+  document.getElementById('cover').hidden = true;
+  document.getElementById('gateWrap').hidden = true;
+  document.getElementById('app').hidden = false;
+  updateBrand();
+  if(!state.listenersStarted){ state.listenersStarted = true; startListeners(); }
+  renderTabs();
+  switchTab('inicio');
+}
+function updateBrand(){
+  const names = (state.meta && state.meta.names) ? Object.values(state.meta.names) : [];
+  document.getElementById('brandLabel').textContent = 'cajón · ' + names.join(' & ');
+}
+
+/* ---------------- tabs ---------------- */
+function renderTabs(){
+  const nav = document.getElementById('tabsNav');
+  nav.innerHTML = TABS.map(function(t){
+    return '<button class="tab" data-tab="'+t.id+'">'+t.icon+'<span>'+t.label+'</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(nav.querySelectorAll('.tab'), function(btn){
+    btn.addEventListener('click', function(){ switchTab(btn.getAttribute('data-tab')); });
+  });
+}
+function markActiveTab(){
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === state.tab);
+  });
+}
+function switchTab(id){
+  state.tab = id;
+  markActiveTab();
+  const el = document.getElementById('tabContent');
+  if(id==='inicio'){ renderInicio(); return; }
+  const sec = tabToSection(id);
+  if(!state.loaded[sec]){
+    el.innerHTML = '<p class="eyebrow" style="padding:20px 0;">cargando…</p>';
+    return;
+  }
+  renderCurrentTab();
+}
+
+/* ---------------- INICIO ---------------- */
+function renderInicio(){
+  const m = state.meta;
+  const names = (m && m.names) ? Object.values(m.names) : [];
+  const el = document.getElementById('tabContent');
+  el.innerHTML =
+    '<div class="home-hero">'+
+      '<span class="eyebrow">cajón compartido</span>'+
+      '<h1 style="margin-top:8px;">'+esc(names.join(' & ')||'…')+'</h1>'+
+      '<p class="intro" id="introText">'+esc(m.intro)+'</p>'+
+      '<p class="motto">"Me gusta lo que estamos empezando, y quiero guardar las pequeñas cosas desde el inicio."</p>'+
+      '<p class="eyebrow since">abierto el '+formatTs(m.createdAt)+'</p>'+
+      '<div class="edit-row"><button class="btn btn-ghost btn-small" id="btnEditIntro">'+ICON.pencil+' editar mensaje</button></div>'+
+      '<div id="editIntroForm" hidden style="margin-top:14px;">'+
+        '<div class="field"><textarea id="editIntroInput">'+esc(m.intro)+'</textarea></div>'+
+        '<div class="form-actions"><button class="btn btn-small" id="saveIntro">Guardar</button><button class="btn btn-ghost btn-small" id="cancelIntro">Cancelar</button></div>'+
+      '</div>'+
+      '<div class="stats-row">'+
+        state.momentos.length+' momentos &nbsp;·&nbsp; '+
+        state.notas.length+' notas &nbsp;·&nbsp; '+
+        state.canciones.length+' canciones &nbsp;·&nbsp; '+
+        state.gustos.length+' frases &nbsp;·&nbsp; '+
+        state.planes.length+' planes'+
+      '</div>'+
+    '</div>';
+
+  document.getElementById('btnEditIntro').addEventListener('click', function(){
+    document.getElementById('editIntroForm').hidden = false;
+  });
+  document.getElementById('cancelIntro').addEventListener('click', function(){
+    document.getElementById('editIntroForm').hidden = true;
+  });
+  document.getElementById('saveIntro').addEventListener('click', async function(){
+    const val = document.getElementById('editIntroInput').value.trim();
+    if(!val) return;
+    await fUpdateMeta({ intro: val });
+    document.getElementById('editIntroForm').hidden = true;
+  });
+}
+
+/* ---------------- MOMENTOS ---------------- */
+function renderMomentos(){
+  const el = document.getElementById('tabContent');
+  let html =
+    '<div class="section-header"><div class="icon">'+ICON.photo+'</div><div>'+
+      '<h2>Momentos</h2><p class="cap">cada foto, con su fecha y su historia corta</p>'+
+    '</div></div>'+
+    '<button class="add-toggle" id="toggleAddMoment">'+ICON.plus+' Guardar un momento</button>'+
+    '<div class="add-form" id="formMoment" hidden>'+
+      '<div class="field"><label>Foto</label><input type="file" accept="image/*" id="mImg"></div>'+
+      '<div class="row">'+
+        '<div class="field"><label>Título</label><input type="text" id="mTitle" placeholder="¿Cómo lo llamarían?"></div>'+
+        '<div class="field"><label>Fecha (opcional)</label><input type="date" id="mDate" value="'+todayStr()+'"></div>'+
+      '</div>'+
+      '<div class="field"><label>Qué pasó</label><textarea id="mDesc" placeholder="Una frase, un detalle, lo que quieran recordar"></textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="saveMoment">Guardar</button><button class="btn btn-ghost btn-small" id="cancelMoment">Cancelar</button></div>'+
+    '</div>';
+
+  if(state.momentos.length===0){
+    html += '<div class="empty-state">'+ICON.photo+'<div>Todavía no hay ningún momento guardado.<br>El primero puede ser cualquier cosa: una foto, una captura, lo que sea que quieran recordar.</div></div>';
+  } else {
+    html += '<div class="grid-photos">'+state.momentos.map(momentoCard).join('')+'</div>';
+  }
+  el.innerHTML = html;
+
+  document.getElementById('toggleAddMoment').addEventListener('click', function(){
+    document.getElementById('formMoment').hidden = !document.getElementById('formMoment').hidden;
+  });
+  document.getElementById('cancelMoment').addEventListener('click', function(){
+    document.getElementById('formMoment').hidden = true;
+  });
+  document.getElementById('saveMoment').addEventListener('click', saveMoment);
+  bindDeletes('momentos');
+}
+
+function momentoCard(m){
+  const rot = ((m.createdAt % 7) - 3);
+  return '<div class="card-photo" style="transform:rotate('+rot+'deg);" data-id="'+m.id+'">'+
+    '<div class="washi"></div>'+
+    '<button class="icon-btn del" data-del="'+m.id+'">'+ICON.x+'</button>'+
+    (m.image ? '<img src="'+m.image+'" alt="'+esc(m.title||'momento')+'" loading="lazy">' : '')+
+    '<div class="cap">'+
+      (m.title ? '<div class="ttl">'+esc(m.title)+'</div>' : '')+
+      (m.date ? '<div class="dt">'+formatDateStr(m.date)+'</div>' : '')+
+      (m.desc ? '<div class="desc">'+esc(m.desc)+'</div>' : '')+
+    '</div>'+
+    '<div class="confirm-slot" id="confirm_'+m.id+'"></div>'+
+  '</div>';
+}
+
+async function saveMoment(){
+  const fileInput = document.getElementById('mImg');
+  const title = document.getElementById('mTitle').value.trim();
+  const date = document.getElementById('mDate').value;
+  const desc = document.getElementById('mDesc').value.trim();
+  const btn = document.getElementById('saveMoment');
+  btn.textContent = 'Guardando…'; btn.disabled = true;
+  const id = uid();
+  let image = null, imagePath = null;
+  if(fileInput.files && fileInput.files[0]){
+    try{
+      const dataUrl = await compressImage(fileInput.files[0], 1000, 0.75);
+      imagePath = 'moments/'+id+'.jpg';
+      const sref = ref(storage, imagePath);
+      await uploadString(sref, dataUrl, 'data_url');
+      image = await getDownloadURL(sref);
+    }catch(e){ console.error('upload error', e); }
+  }
+  const obj = { authorUid:auth.currentUser.uid, title:title, date:date, desc:desc, image:image, imagePath:imagePath, createdAt:Date.now() };
+  await fAdd(COLLECTIONS.momentos, id, obj);
+  btn.textContent = 'Guardar'; btn.disabled = false;
+  document.getElementById('formMoment').hidden = true;
+  fileInput.value = ''; document.getElementById('mTitle').value=''; document.getElementById('mDesc').value='';
+}
+
+/* ---------------- NOTAS ---------------- */
+function renderNotas(){
+  const el = document.getElementById('tabContent');
+  let html =
+    '<div class="section-header"><div class="icon">'+ICON.mail+'</div><div>'+
+      '<h2>Notas y cartas</h2><p class="cap">para lo que no entra en una foto</p>'+
+    '</div></div>'+
+    '<button class="add-toggle" id="toggleAddNote">'+ICON.plus+' Escribir algo</button>'+
+    '<div class="add-form" id="formNote" hidden>'+
+      '<div class="field"><label>Título (opcional)</label><input type="text" id="nTitle" placeholder="opcional"></div>'+
+      '<div class="field"><label>Texto</label><textarea id="nBody" placeholder="Lo que quieras decir, corto o largo"></textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="saveNote">Guardar</button><button class="btn btn-ghost btn-small" id="cancelNote">Cancelar</button></div>'+
+    '</div>';
+
+  if(state.notas.length===0){
+    html += '<div class="empty-state">'+ICON.mail+'<div>Acá van los mensajes largos, las cartas cortas, lo que quieran decirse y guardar.<br>Todavía no escribieron nada.</div></div>';
+  } else {
+    html += '<div class="list-notes">'+state.notas.map(noteCard).join('')+'</div>';
+  }
+  el.innerHTML = html;
+
+  document.getElementById('toggleAddNote').addEventListener('click', function(){
+    document.getElementById('formNote').hidden = !document.getElementById('formNote').hidden;
+  });
+  document.getElementById('cancelNote').addEventListener('click', function(){
+    document.getElementById('formNote').hidden = true;
+  });
+  document.getElementById('saveNote').addEventListener('click', saveNote);
+  bindDeletes('notas');
+}
+
+function noteCard(n){
+  const color = authorColorVar(n.authorUid);
+  return '<div class="card-note" style="--author-color:'+color+';" data-id="'+n.id+'">'+
+    '<div class="meta-row"><span class="author-tag">'+esc(authorName(n.authorUid))+'</span>'+
+    '<span class="dt">'+formatTs(n.createdAt)+'</span></div>'+
+    (n.title ? '<h3>'+esc(n.title)+'</h3>' : '')+
+    '<div class="body">'+nl2br(n.body)+'</div>'+
+    '<div style="display:flex; justify-content:flex-end; margin-top:10px;"><button class="icon-btn" data-del="'+n.id+'">'+ICON.x+'</button></div>'+
+    '<div class="confirm-slot" id="confirm_'+n.id+'"></div>'+
+  '</div>';
+}
+
+async function saveNote(){
+  const title = document.getElementById('nTitle').value.trim();
+  const body = document.getElementById('nBody').value.trim();
+  if(!body) return;
+  const id = uid();
+  const obj = { authorUid:auth.currentUser.uid, title:title, body:body, createdAt:Date.now() };
+  await fAdd('notes', id, obj);
+  document.getElementById('formNote').hidden = true;
+  document.getElementById('nTitle').value=''; document.getElementById('nBody').value='';
+}
+
+/* ---------------- MUSICA ---------------- */
+function parseMusicLink(url){
+  try{
+    const u = new URL(url);
+    if(u.hostname.indexOf('open.spotify.com') !== -1){
+      const parts = u.pathname.split('/').filter(Boolean);
+      const types = ['track','album','playlist','episode','show'];
+      const idx = parts.findIndex(function(p){ return types.indexOf(p) !== -1; });
+      if(idx>=0 && parts[idx+1]) return { type:'spotify', embed:'https://open.spotify.com/embed/'+parts[idx]+'/'+parts[idx+1] };
+    }
+    if(u.hostname.indexOf('youtube.com') !== -1 || u.hostname.indexOf('youtu.be') !== -1){
+      let id = null;
+      if(u.hostname.indexOf('youtu.be') !== -1) id = u.pathname.slice(1);
+      else if(u.searchParams.get('v')) id = u.searchParams.get('v');
+      else{ const parts = u.pathname.split('/').filter(Boolean); if(parts[0]==='embed') id = parts[1]; }
+      if(id) return { type:'youtube', embed:'https://www.youtube.com/embed/'+id };
+    }
+  }catch(e){}
+  return { type:'link', embed:null };
+}
+
+function renderMusica(){
+  const el = document.getElementById('tabContent');
+  let html =
+    '<div class="section-header"><div class="icon">'+ICON.music+'</div><div>'+
+      '<h2>Música</h2><p class="cap">canciones que les suenan a esto</p>'+
+    '</div></div>'+
+    '<button class="add-toggle" id="toggleAddSong">'+ICON.plus+' Agregar una canción</button>'+
+    '<div class="add-form" id="formSong" hidden>'+
+      '<div class="row">'+
+        '<div class="field"><label>Canción</label><input type="text" id="sTitle" placeholder="Nombre de la canción"></div>'+
+        '<div class="field"><label>Artista</label><input type="text" id="sArtist" placeholder="Artista"></div>'+
+      '</div>'+
+      '<div class="field"><label>Link (opcional)</label><input type="url" id="sLink" placeholder="Spotify, YouTube, lo que sea"></div>'+
+      '<div class="field"><label>Por qué (opcional)</label><textarea id="sWhy" placeholder="¿Qué les recuerda?"></textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="saveSong">Guardar</button><button class="btn btn-ghost btn-small" id="cancelSong">Cancelar</button></div>'+
+    '</div>';
+
+  if(state.canciones.length===0){
+    html += '<div class="empty-state">'+ICON.music+'<div>Todavía no hay ninguna canción.<br>Puede ser una que ya signifique algo, o una que descubran juntos ahora.</div></div>';
+  } else {
+    const asc = state.canciones.slice().sort(function(a,b){ return a.createdAt-b.createdAt; });
+    const numMap = {};
+    asc.forEach(function(s,i){ numMap[s.id]=i+1; });
+    html += '<div class="list-songs">'+state.canciones.map(function(s){ return songCard(s, numMap[s.id]); }).join('')+'</div>';
+  }
+  el.innerHTML = html;
+
+  document.getElementById('toggleAddSong').addEventListener('click', function(){
+    document.getElementById('formSong').hidden = !document.getElementById('formSong').hidden;
+  });
+  document.getElementById('cancelSong').addEventListener('click', function(){
+    document.getElementById('formSong').hidden = true;
+  });
+  document.getElementById('saveSong').addEventListener('click', saveSong);
+  bindDeletes('canciones');
+}
+
+function songCard(s, numero){
+  const parsed = s.link ? parseMusicLink(s.link) : {type:null, embed:null};
+  let embedHtml = '';
+  if(parsed.embed){
+    if(parsed.type==='spotify'){
+      embedHtml = '<div class="embed-wrap"><iframe src="'+parsed.embed+'" width="100%" height="80" frameborder="0" loading="lazy" allow="encrypted-media"></iframe></div>';
+    } else if(parsed.type==='youtube'){
+      embedHtml = '<div class="embed-wrap"><iframe src="'+parsed.embed+'" width="100%" height="180" frameborder="0" loading="lazy" allow="encrypted-media" allowfullscreen></iframe></div>';
+    }
+  } else if(s.link){
+    embedHtml = '<a class="listen-link" href="'+esc(s.link)+'" target="_blank" rel="noopener">'+ICON.link+' escuchar</a>';
+  }
+  return '<div class="card-song" data-id="'+s.id+'">'+
+    '<div class="top-row"><div>'+
+      '<div class="no">N&deg; '+String(numero).padStart(3,'0')+'</div>'+
+      '<div class="ttl">'+esc(s.title||'sin título')+'</div>'+
+      (s.artist ? '<div class="artist">'+esc(s.artist)+'</div>' : '')+
+    '</div><button class="icon-btn" data-del="'+s.id+'">'+ICON.x+'</button></div>'+
+    (s.why ? '<div class="why">"'+esc(s.why)+'"</div>' : '')+
+    embedHtml+
+    '<div class="confirm-slot" id="confirm_'+s.id+'"></div>'+
+  '</div>';
+}
+
+async function saveSong(){
+  const title = document.getElementById('sTitle').value.trim();
+  const artist = document.getElementById('sArtist').value.trim();
+  const link = document.getElementById('sLink').value.trim();
+  const why = document.getElementById('sWhy').value.trim();
+  if(!title) return;
+  const id = uid();
+  const obj = { title:title, artist:artist, link:link, why:why, createdAt:Date.now() };
+  await fAdd('songs', id, obj);
+  document.getElementById('formSong').hidden = true;
+  document.getElementById('sTitle').value=''; document.getElementById('sArtist').value='';
+  document.getElementById('sLink').value=''; document.getElementById('sWhy').value='';
+}
+
+/* ---------------- GUSTOS ---------------- */
+function renderGustos(){
+  const el = document.getElementById('tabContent');
+  let html =
+    '<div class="section-header"><div class="icon">'+ICON.heart+'</div><div>'+
+      '<h2>Lo que me gusta de vos</h2><p class="cap">frases cortas, sinceras, que se van sumando</p>'+
+    '</div></div>'+
+    '<button class="add-toggle" id="toggleAddLike">'+ICON.plus+' Sumar una frase</button>'+
+    '<div class="add-form" id="formLike" hidden>'+
+      '<div class="field"><label>Frase</label><textarea id="lText" placeholder="Algo simple y honesto"></textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="saveLike">Guardar</button><button class="btn btn-ghost btn-small" id="cancelLike">Cancelar</button></div>'+
+    '</div>';
+
+  if(state.gustos.length===0){
+    html += '<div class="empty-state">'+ICON.heart+'<div>Todavía no hay ninguna frase.<br>Puede ser algo chiquito: cómo se ríe, cómo cuenta las cosas, lo que sea.</div></div>';
+  } else {
+    html += '<div class="tags-wrap">'+state.gustos.map(likeTag).join('')+'</div>';
+  }
+  el.innerHTML = html;
+
+  document.getElementById('toggleAddLike').addEventListener('click', function(){
+    document.getElementById('formLike').hidden = !document.getElementById('formLike').hidden;
+  });
+  document.getElementById('cancelLike').addEventListener('click', function(){
+    document.getElementById('formLike').hidden = true;
+  });
+  document.getElementById('saveLike').addEventListener('click', saveLike);
+  bindDeletes('gustos');
+}
+
+function likeTag(g){
+  const tint = TINTS[Math.abs(g.createdAt) % 3];
+  return '<div class="tag-like" style="--tint:'+tint+';" data-id="'+g.id+'">'+
+    '<div class="phrase">'+esc(g.text)+'</div>'+
+    '<div class="meta-row"><span class="who">— '+esc(authorName(g.authorUid))+'</span>'+
+    '<button class="icon-btn" data-del="'+g.id+'">'+ICON.x+'</button></div>'+
+    '<div class="confirm-slot" id="confirm_'+g.id+'"></div>'+
+  '</div>';
+}
+
+async function saveLike(){
+  const text = document.getElementById('lText').value.trim();
+  if(!text) return;
+  const id = uid();
+  const obj = { authorUid:auth.currentUser.uid, text:text, createdAt:Date.now() };
+  await fAdd('likes', id, obj);
+  document.getElementById('formLike').hidden = true;
+  document.getElementById('lText').value='';
+}
+
+/* ---------------- FUTURO ---------------- */
+function renderFuturo(){
+  const el = document.getElementById('tabContent');
+  let html =
+    '<div class="section-header"><div class="icon">'+ICON.map+'</div><div>'+
+      '<h2>Futuro</h2><p class="cap">cosas que les gustaría hacer juntos, sin presión</p>'+
+    '</div></div>'+
+    '<button class="add-toggle" id="toggleAddPlan">'+ICON.plus+' Anotar un plan</button>'+
+    '<div class="add-form" id="formPlan" hidden>'+
+      '<div class="field"><label>Qué</label><textarea id="pText" placeholder="Un lugar, un plan, una idea"></textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="savePlan">Guardar</button><button class="btn btn-ghost btn-small" id="cancelPlan">Cancelar</button></div>'+
+    '</div>';
+
+  if(state.planes.length===0){
+    html += '<div class="empty-state">'+ICON.map+'<div>Ideas para más adelante: un lugar, un plan, algo random.<br>Todavía no anotaron nada.</div></div>';
+  } else {
+    const pend = state.planes.filter(function(p){ return !p.done; });
+    const done = state.planes.filter(function(p){ return p.done; });
+    html += '<div class="list-plans">'+pend.map(planCard).join('')+done.map(planCard).join('')+'</div>';
+  }
+  el.innerHTML = html;
+
+  document.getElementById('toggleAddPlan').addEventListener('click', function(){
+    document.getElementById('formPlan').hidden = !document.getElementById('formPlan').hidden;
+  });
+  document.getElementById('cancelPlan').addEventListener('click', function(){
+    document.getElementById('formPlan').hidden = true;
+  });
+  document.getElementById('savePlan').addEventListener('click', savePlan);
+
+  Array.prototype.forEach.call(el.querySelectorAll('.chk'), function(c){
+    c.addEventListener('click', function(){ togglePlan(c.getAttribute('data-id')); });
+  });
+  bindDeletes('planes');
+}
+
+function planCard(p){
+  return '<div class="card-plan '+(p.done?'done':'')+'" data-id="'+p.id+'">'+
+    '<div class="chk" data-id="'+p.id+'">'+ICON.check+'</div>'+
+    '<div class="txt">'+esc(p.text)+(p.done? '<span class="dt">cumplido el '+formatTs(p.doneAt||p.createdAt)+'</span>' : '')+'</div>'+
+    '<button class="icon-btn" data-del="'+p.id+'">'+ICON.x+'</button>'+
+    '<div class="confirm-slot" id="confirm_'+p.id+'"></div>'+
+  '</div>';
+}
+
+async function savePlan(){
+  const text = document.getElementById('pText').value.trim();
+  if(!text) return;
+  const id = uid();
+  const obj = { text:text, done:false, createdAt:Date.now() };
+  await fAdd('plans', id, obj);
+  document.getElementById('formPlan').hidden = true;
+  document.getElementById('pText').value='';
+}
+
+async function togglePlan(id){
+  const p = state.planes.find(function(x){ return x.id===id; });
+  if(!p) return;
+  await fUpdate('plans', id, { done: !p.done, doneAt: !p.done ? Date.now() : null });
+}
+
+/* ---------------- delete w/ inline confirm ---------------- */
+function bindDeletes(section){
+  const el = document.getElementById('tabContent');
+  Array.prototype.forEach.call(el.querySelectorAll('[data-del]'), function(btn){
+    btn.addEventListener('click', function(){
+      const id = btn.getAttribute('data-del');
+      const slot = document.getElementById('confirm_'+id);
+      if(!slot) return;
+      slot.innerHTML = '<div class="confirm-row" style="margin-top:8px;">¿Eliminar esto?'+
+        '<button class="yes" data-yes="'+id+'">Sí</button>'+
+        '<button class="no" data-no="'+id+'">No</button></div>';
+      slot.querySelector('[data-yes]').addEventListener('click', async function(){
+        if(section==='momentos'){
+          const item = state[section].find(function(x){ return x.id===id; });
+          if(item && item.imagePath){
+            try{ await deleteObject(ref(storage, item.imagePath)); }catch(e){}
+          }
+        }
+        await fDelete(COLLECTIONS[section], id);
+      });
+      slot.querySelector('[data-no]').addEventListener('click', function(){ slot.innerHTML=''; });
+    });
+  });
+}
+
+</script>
+</body>
+</html>
