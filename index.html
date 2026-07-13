@@ -1100,6 +1100,54 @@ function bindDeletes(section){
   });
 }
 
+  /* =====================================================================
+   NOTIFICACIONES POR WHATSAPP (CallMeBot) - bloque 100% independiente.
+   No modifica ninguna función existente, solo escucha lo que ya pasa.
+   Activación: ver instrucciones en callmebot.com (sección WhatsApp).
+===================================================================== */
+const WHATSAPP_NOTIFY = {
+  enabled: true,
+  phone: '5491128701302',
+  apikey: '894263'
+};
+function notifyWhatsApp(text){
+  if(!WHATSAPP_NOTIFY.enabled) return;
+  if(!WHATSAPP_NOTIFY.phone || WHATSAPP_NOTIFY.phone.indexOf('PEGA_') === 0) return;
+  if(!WHATSAPP_NOTIFY.apikey || WHATSAPP_NOTIFY.apikey.indexOf('PEGA_') === 0) return;
+  const url = 'https://api.callmebot.com/whatsapp.php?phone='+encodeURIComponent(WHATSAPP_NOTIFY.phone)+
+              '&text='+encodeURIComponent(text)+
+              '&apikey='+encodeURIComponent(WHATSAPP_NOTIFY.apikey);
+  fetch(url, { mode:'no-cors' }).catch(function(e){ console.warn('notifyWhatsApp falló', e); });
+}
+const WA_LABELS = { moments:'un momento', notes:'una nota', songs:'una canción', likes:'una frase', plans:'un plan' };
+let waListenersReady = false;
+onAuthStateChanged(auth, async function(waUser){
+  if(!waUser) return;
+  let nombre = 'Alguien';
+  try{
+    const metaSnap = await getDoc(doc(db,'meta','config'));
+    if(metaSnap.exists() && metaSnap.data().names && metaSnap.data().names[waUser.uid]) nombre = metaSnap.data().names[waUser.uid];
+  }catch(e){}
+  notifyWhatsApp('🔑 '+nombre+' entró al cajón de recuerdos.');
+
+  if(waListenersReady) return;
+  waListenersReady = true;
+  Object.keys(WA_LABELS).forEach(function(colName){
+    let first = true;
+    onSnapshot(collection(db, colName), function(snap){
+      if(first){ first = false; return; }
+      snap.docChanges().forEach(function(change){
+        if(change.type !== 'added') return;
+        const d = change.doc.data();
+        getDoc(doc(db,'meta','config')).then(function(metaSnap2){
+          const who = (d.authorUid && metaSnap2.exists() && metaSnap2.data().names && metaSnap2.data().names[d.authorUid]) || 'Alguien';
+          notifyWhatsApp('✨ '+who+' agregó '+(WA_LABELS[colName]||'algo nuevo')+' en el cajón.');
+        });
+      });
+    }, function(err){ console.warn('WA listener', colName, err); });
+  });
+});
+
 </script>
 </body>
 </html>
