@@ -229,6 +229,7 @@
   .card-photo .cap .ttl{ font-family:'Fraunces',serif; font-size:1rem; margin-bottom:2px; }
   .card-photo .cap .dt{ font-family:'Space Mono',monospace; font-size:0.64rem; color:var(--ink-soft); text-transform:uppercase; }
   .card-photo .cap .desc{ font-size:0.85rem; color:var(--ink-soft); margin-top:6px; line-height:1.45; }
+  .card-photo .moment-audio{ width:100%; height:34px; margin-top:10px; display:block; }
   .card-photo .del{ position:absolute; top:6px; right:6px; background:rgba(251,248,241,0.9); border-radius:50%; }
 
   /* ---------- notas ---------- */
@@ -366,7 +367,7 @@ import {
   collection, query, orderBy, onSnapshot, arrayUnion
 } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 import {
-  getStorage, ref, uploadString, getDownloadURL, deleteObject
+  getStorage, ref, uploadString, uploadBytes, getDownloadURL, deleteObject
 } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-storage.js';
 
 /* =====================================================================
@@ -754,6 +755,8 @@ function renderMomentos(){
         '<div class="field"><label>Fecha (opcional)</label><input type="date" id="mDate" value="'+todayStr()+'"></div>'+
       '</div>'+
       '<div class="field"><label>Qué pasó</label><textarea id="mDesc" placeholder="Una frase, un detalle, lo que quieran recordar"></textarea></div>'+
+      '<div class="field"><label>Audio (opcional)</label><input type="file" accept="audio/*" id="mAudio"><div class="note">mp3 o m4a, hasta 15 MB. Por ejemplo, una carta leída.</div></div>'+
+      '<div class="error-msg" id="mError"></div>'+
       '<div class="form-actions"><button class="btn btn-small" id="saveMoment">Guardar</button><button class="btn btn-ghost btn-small" id="cancelMoment">Cancelar</button></div>'+
     '</div>';
 
@@ -784,6 +787,7 @@ function momentoCard(m){
       (m.title ? '<div class="ttl">'+esc(m.title)+'</div>' : '')+
       (m.date ? '<div class="dt">'+formatDateStr(m.date)+'</div>' : '')+
       (m.desc ? '<div class="desc">'+esc(m.desc)+'</div>' : '')+
+      (m.audio ? '<audio class="moment-audio" controls preload="none" src="'+esc(m.audio)+'"></audio>' : '')+
     '</div>'+
     '<div class="confirm-slot" id="confirm_'+m.id+'"></div>'+
   '</div>';
@@ -794,9 +798,33 @@ async function saveMoment(){
   const title = document.getElementById('mTitle').value.trim();
   const date = document.getElementById('mDate').value;
   const desc = document.getElementById('mDesc').value.trim();
+  const audioInput = document.getElementById('mAudio');
+  const errBox = document.getElementById('mError');
+  errBox.style.display = 'none';
+  const audioFile = (audioInput.files && audioInput.files[0]) ? audioInput.files[0] : null;
+  if(audioFile && audioFile.size > 15*1024*1024){
+    errBox.textContent = 'El audio pesa más de 15 MB. Probá con uno más corto o comprimido (mp3).';
+    errBox.style.display = 'block';
+    return;
+  }
   const btn = document.getElementById('saveMoment');
   btn.textContent = 'Guardando…'; btn.disabled = true;
   const id = uid();
+  let audio = null, audioPath = null;
+  if(audioFile){
+    try{
+      const ext = (audioFile.name.split('.').pop() || 'mp3').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp3';
+      audioPath = 'moments/'+id+'_audio.'+ext;
+      const aref = ref(storage, audioPath);
+      await uploadBytes(aref, audioFile, { contentType: audioFile.type || 'audio/mpeg' });
+      audio = await getDownloadURL(aref);
+    }catch(e){
+      console.error('audio upload error', e);
+      audio = null; audioPath = null;
+      errBox.textContent = 'No se pudo subir el audio. Se guardó el momento sin audio.';
+      errBox.style.display = 'block';
+    }
+  }
   let image = null, imagePath = null;
   if(fileInput.files && fileInput.files[0]){
     try{
@@ -807,11 +835,11 @@ async function saveMoment(){
       image = await getDownloadURL(sref);
     }catch(e){ console.error('upload error', e); }
   }
-  const obj = { authorUid:auth.currentUser.uid, title:title, date:date, desc:desc, image:image, imagePath:imagePath, createdAt:Date.now() };
+  const obj = { authorUid:auth.currentUser.uid, title:title, date:date, desc:desc, image:image, imagePath:imagePath, audio:audio, audioPath:audioPath, createdAt:Date.now() };
   await fAdd(COLLECTIONS.momentos, id, obj);
   btn.textContent = 'Guardar'; btn.disabled = false;
   document.getElementById('formMoment').hidden = true;
-  fileInput.value = ''; document.getElementById('mTitle').value=''; document.getElementById('mDesc').value='';
+  fileInput.value = ''; audioInput.value = ''; document.getElementById('mTitle').value=''; document.getElementById('mDesc').value='';
 }
 
 /* ---------------- NOTAS ---------------- */
@@ -1091,6 +1119,9 @@ function bindDeletes(section){
           const item = state[section].find(function(x){ return x.id===id; });
           if(item && item.imagePath){
             try{ await deleteObject(ref(storage, item.imagePath)); }catch(e){}
+          }
+          if(item && item.audioPath){
+            try{ await deleteObject(ref(storage, item.audioPath)); }catch(e){}
           }
         }
         await fDelete(COLLECTIONS[section], id);
