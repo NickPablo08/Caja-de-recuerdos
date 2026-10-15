@@ -236,6 +236,17 @@
   .card-photo .moment-audio{ width:100%; height:34px; margin-top:10px; display:block; }
   .card-note .note-audio{ width:100%; height:34px; margin-top:12px; display:block; }
   .card-photo .del{ position:absolute; top:6px; right:6px; background:rgba(251,248,241,0.9); border-radius:50%; }
+  .card-photo .edit-btn{ position:absolute; top:6px; right:36px; background:rgba(251,248,241,0.9); border-radius:50%; }
+
+  /* ---------- editar (ventana) ---------- */
+  .modal-back{
+    position:fixed; inset:0; z-index:50; background:rgba(59,50,43,0.45);
+    display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+  .modal-back .paper-card{ max-height:92vh; overflow-y:auto; }
+  .edit-audio{ width:100%; height:34px; margin:2px 0 8px; display:block; }
+  .chk-row{ display:flex; align-items:center; gap:8px; font-size:0.84rem; color:var(--ink-soft); margin-bottom:14px; }
+  .chk-row input{ width:auto; }
 
   /* ---------- notas ---------- */
   .list-notes{ display:flex; flex-direction:column; gap:16px; }
@@ -781,6 +792,7 @@ function renderMomentos(){
   });
   document.getElementById('saveMoment').addEventListener('click', saveMoment);
   bindDeletes('momentos');
+  bindEdits('momentos');
 }
 
 function momentoCard(m){
@@ -788,6 +800,7 @@ function momentoCard(m){
   return '<div class="card-photo" style="transform:rotate('+rot+'deg);" data-id="'+m.id+'">'+
     '<div class="washi"></div>'+
     '<button class="icon-btn del" data-del="'+m.id+'">'+ICON.x+'</button>'+
+    '<button class="icon-btn edit-btn" data-edit="'+m.id+'" title="Editar">'+ICON.pencil+'</button>'+
     (m.image ? '<img src="'+m.image+'" alt="'+esc(m.title||'momento')+'" loading="lazy">' : '')+
     '<div class="cap">'+
       (m.title ? '<div class="ttl">'+esc(m.title)+'</div>' : '')+
@@ -879,6 +892,7 @@ function renderNotas(){
   });
   document.getElementById('saveNote').addEventListener('click', saveNote);
   bindDeletes('notas');
+  bindEdits('notas');
 }
 
 function noteCard(n){
@@ -889,7 +903,7 @@ function noteCard(n){
     (n.title ? '<h3>'+esc(n.title)+'</h3>' : '')+
     '<div class="body">'+nl2br(n.body)+'</div>'+
     (n.audio ? '<audio class="note-audio" controls preload="none" src="'+esc(n.audio)+'"></audio>' : '')+
-    '<div style="display:flex; justify-content:flex-end; margin-top:10px;"><button class="icon-btn" data-del="'+n.id+'">'+ICON.x+'</button></div>'+
+    '<div style="display:flex; justify-content:flex-end; gap:4px; margin-top:10px;"><button class="icon-btn" data-edit="'+n.id+'" title="Editar">'+ICON.pencil+'</button><button class="icon-btn" data-del="'+n.id+'">'+ICON.x+'</button></div>'+
     '<div class="confirm-slot" id="confirm_'+n.id+'"></div>'+
   '</div>';
 }
@@ -1138,6 +1152,151 @@ async function togglePlan(id){
   const p = state.planes.find(function(x){ return x.id===id; });
   if(!p) return;
   await fUpdate('plans', id, { done: !p.done, doneAt: !p.done ? Date.now() : null });
+}
+
+/* ---------------- EDITAR (momentos y notas) ---------------- */
+function onEditKey(e){ if(e.key==='Escape') closeEditModal(); }
+function closeEditModal(){
+  const m = document.getElementById('editModal');
+  if(m) m.remove();
+  document.removeEventListener('keydown', onEditKey);
+}
+function bindEdits(section){
+  const el = document.getElementById('tabContent');
+  Array.prototype.forEach.call(el.querySelectorAll('[data-edit]'), function(btn){
+    btn.addEventListener('click', function(){ openEditModal(section, btn.getAttribute('data-edit')); });
+  });
+}
+function openEditModal(section, id){
+  const item = state[section].find(function(x){ return x.id===id; });
+  if(!item) return;
+  const isMoment = section==='momentos';
+  closeEditModal();
+  let fields;
+  if(isMoment){
+    fields =
+      '<div class="field"><label>Título</label><input type="text" id="eTitle" value="'+esc(item.title||'')+'"></div>'+
+      '<div class="field"><label>Fecha</label><input type="date" id="eDate" value="'+esc(item.date||'')+'"></div>'+
+      '<div class="field"><label>Qué pasó</label><textarea id="eText">'+esc(item.desc||'')+'</textarea></div>'+
+      '<div class="field"><label>'+(item.image?'Cambiar foto':'Agregar foto')+' (opcional)</label><input type="file" accept="image/*" id="eImg"></div>';
+  } else {
+    fields =
+      '<div class="field"><label>Título (opcional)</label><input type="text" id="eTitle" value="'+esc(item.title||'')+'"></div>'+
+      '<div class="field"><label>Texto</label><textarea id="eText">'+esc(item.body||'')+'</textarea></div>';
+  }
+  const audioBlock =
+    (item.audio
+      ? '<div class="field" style="margin-bottom:6px;"><label>Audio actual</label></div>'+
+        '<audio class="edit-audio" controls preload="none" src="'+esc(item.audio)+'"></audio>'+
+        '<label class="chk-row"><input type="checkbox" id="eRemoveAudio"> Quitar este audio</label>'
+      : '')+
+    '<div class="field"><label>'+(item.audio?'Reemplazar audio':'Agregar audio')+' (opcional)</label>'+
+    '<input type="file" accept="audio/*" id="eAudio"><div class="note">mp3 o m4a, hasta 15 MB.</div></div>';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'editModal';
+  wrap.className = 'modal-back';
+  wrap.innerHTML =
+    '<div class="paper-card">'+
+      '<span class="eyebrow">editar</span>'+
+      '<h2 style="margin:8px 0 16px;">'+(isMoment?'Editar momento':'Editar nota')+'</h2>'+
+      fields+audioBlock+
+      '<div class="error-msg" id="eError"></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="eSave">Guardar</button><button class="btn btn-ghost btn-small" id="eCancel">Cancelar</button></div>'+
+    '</div>';
+  document.body.appendChild(wrap);
+  wrap.addEventListener('click', function(e){ if(e.target===wrap) closeEditModal(); });
+  document.getElementById('eCancel').addEventListener('click', closeEditModal);
+  document.getElementById('eSave').addEventListener('click', function(){ saveEdit(section, id); });
+  document.addEventListener('keydown', onEditKey);
+}
+
+async function saveEdit(section, id){
+  const item = state[section].find(function(x){ return x.id===id; });
+  if(!item) { closeEditModal(); return; }
+  const isMoment = section==='momentos';
+  const errBox = document.getElementById('eError');
+  const btn = document.getElementById('eSave');
+  function fail(msg){
+    errBox.textContent = msg; errBox.style.display = 'block';
+    btn.textContent = 'Guardar'; btn.disabled = false;
+  }
+  errBox.style.display = 'none';
+
+  const audioInput = document.getElementById('eAudio');
+  const audioFile = (audioInput.files && audioInput.files[0]) ? audioInput.files[0] : null;
+  if(audioFile && audioFile.size > 15*1024*1024){
+    fail('El audio pesa más de 15 MB. Probá con uno más corto o comprimido (mp3).');
+    return;
+  }
+
+  const patch = {};
+  const title = document.getElementById('eTitle').value.trim();
+  const text = document.getElementById('eText').value.trim();
+  patch.title = title;
+  if(isMoment){
+    patch.date = document.getElementById('eDate').value;
+    patch.desc = text;
+  } else {
+    if(!text){ fail('La nota no puede quedar vacía.'); return; }
+    patch.body = text;
+  }
+
+  btn.textContent = 'Guardando…'; btn.disabled = true;
+  const folder = isMoment ? 'moments' : 'notes';
+  const removeBox = document.getElementById('eRemoveAudio');
+  const removeAudio = !!(removeBox && removeBox.checked);
+  const oldAudioPath = item.audioPath || null;
+  let audioChanged = false;
+
+  if(audioFile){
+    try{
+      const ext = (audioFile.name.split('.').pop() || 'mp3').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp3';
+      const newPath = folder+'/'+id+'_audio_'+Date.now()+'.'+ext;
+      const aref = ref(storage, newPath);
+      await uploadBytes(aref, audioFile, { contentType: audioFile.type || 'audio/mpeg' });
+      patch.audio = await getDownloadURL(aref);
+      patch.audioPath = newPath;
+      audioChanged = true;
+    }catch(e){
+      console.error('audio upload error', e);
+      fail('No se pudo subir el audio. No se guardó ningún cambio.');
+      return;
+    }
+  } else if(removeAudio){
+    patch.audio = null; patch.audioPath = null; audioChanged = true;
+  }
+
+  let oldImagePath = null;
+  if(isMoment){
+    const imgInput = document.getElementById('eImg');
+    if(imgInput && imgInput.files && imgInput.files[0]){
+      try{
+        const dataUrl = await compressImage(imgInput.files[0], 1000, 0.75);
+        const newImgPath = 'moments/'+id+'_'+Date.now()+'.jpg';
+        const sref = ref(storage, newImgPath);
+        await uploadString(sref, dataUrl, 'data_url');
+        patch.image = await getDownloadURL(sref);
+        patch.imagePath = newImgPath;
+        oldImagePath = item.imagePath || null;
+      }catch(e){
+        console.error('image upload error', e);
+        fail('No se pudo subir la foto. No se guardó ningún cambio.');
+        return;
+      }
+    }
+  }
+
+  const ok = await fUpdate(COLLECTIONS[section], id, patch);
+  if(!ok){ fail('No se pudo guardar. Probá de nuevo.'); return; }
+
+  if(audioChanged && oldAudioPath){
+    try{ await deleteObject(ref(storage, oldAudioPath)); }catch(e){}
+  }
+  if(oldImagePath){
+    try{ await deleteObject(ref(storage, oldImagePath)); }catch(e){}
+  }
+  closeEditModal();
 }
 
 /* ---------------- delete w/ inline confirm ---------------- */
