@@ -20,6 +20,10 @@
     --sage-tint:#E1E7DB;
     --ochre:#BE9142;
     --ochre-tint:#EFE0BE;
+    --clay-tint:#F0D9C8;
+    --mist-tint:#DCE5E8;
+    --mauve-tint:#E6DCE8;
+    --olive-tint:#E6E8CE;
     --line:#DBD0BE;
     --shadow: 58, 50, 44;
     --radius: 16px;
@@ -230,6 +234,7 @@
   .card-photo .cap .dt{ font-family:'Space Mono',monospace; font-size:0.64rem; color:var(--ink-soft); text-transform:uppercase; }
   .card-photo .cap .desc{ font-size:0.85rem; color:var(--ink-soft); margin-top:6px; line-height:1.45; }
   .card-photo .moment-audio{ width:100%; height:34px; margin-top:10px; display:block; }
+  .card-note .note-audio{ width:100%; height:34px; margin-top:12px; display:block; }
   .card-photo .del{ position:absolute; top:6px; right:6px; background:rgba(251,248,241,0.9); border-radius:50%; }
 
   /* ---------- notas ---------- */
@@ -436,7 +441,8 @@ const TABS = [
   {id:'futuro', label:'Futuro', icon:ICON.map}
 ];
 const AUTHOR_COLORS = ['var(--rose)','var(--sage)'];
-const TINTS = ['var(--rose-tint)','var(--sage-tint)','var(--ochre-tint)'];
+const TINTS = ['var(--rose-tint)','var(--sage-tint)','var(--ochre-tint)','var(--clay-tint)','var(--mist-tint)','var(--mauve-tint)','var(--olive-tint)'];
+function hashStr(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h); }
 const COLLECTIONS = { momentos:'moments', notas:'notes', canciones:'songs', gustos:'likes', planes:'plans' };
 
 /* ---------------- state ---------------- */
@@ -853,6 +859,8 @@ function renderNotas(){
     '<div class="add-form" id="formNote" hidden>'+
       '<div class="field"><label>Título (opcional)</label><input type="text" id="nTitle" placeholder="opcional"></div>'+
       '<div class="field"><label>Texto</label><textarea id="nBody" placeholder="Lo que quieras decir, corto o largo"></textarea></div>'+
+      '<div class="field"><label>Audio (opcional)</label><input type="file" accept="audio/*" id="nAudio"><div class="note">mp3 o m4a, hasta 15 MB. Por ejemplo, la carta leída.</div></div>'+
+      '<div class="error-msg" id="nError"></div>'+
       '<div class="form-actions"><button class="btn btn-small" id="saveNote">Guardar</button><button class="btn btn-ghost btn-small" id="cancelNote">Cancelar</button></div>'+
     '</div>';
 
@@ -880,6 +888,7 @@ function noteCard(n){
     '<span class="dt">'+formatTs(n.createdAt)+'</span></div>'+
     (n.title ? '<h3>'+esc(n.title)+'</h3>' : '')+
     '<div class="body">'+nl2br(n.body)+'</div>'+
+    (n.audio ? '<audio class="note-audio" controls preload="none" src="'+esc(n.audio)+'"></audio>' : '')+
     '<div style="display:flex; justify-content:flex-end; margin-top:10px;"><button class="icon-btn" data-del="'+n.id+'">'+ICON.x+'</button></div>'+
     '<div class="confirm-slot" id="confirm_'+n.id+'"></div>'+
   '</div>';
@@ -889,10 +898,38 @@ async function saveNote(){
   const title = document.getElementById('nTitle').value.trim();
   const body = document.getElementById('nBody').value.trim();
   if(!body) return;
+  const audioInput = document.getElementById('nAudio');
+  const errBox = document.getElementById('nError');
+  errBox.style.display = 'none';
+  const audioFile = (audioInput.files && audioInput.files[0]) ? audioInput.files[0] : null;
+  if(audioFile && audioFile.size > 15*1024*1024){
+    errBox.textContent = 'El audio pesa más de 15 MB. Probá con uno más corto o comprimido (mp3).';
+    errBox.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('saveNote');
+  btn.textContent = 'Guardando…'; btn.disabled = true;
   const id = uid();
-  const obj = { authorUid:auth.currentUser.uid, title:title, body:body, createdAt:Date.now() };
+  let audio = null, audioPath = null;
+  if(audioFile){
+    try{
+      const ext = (audioFile.name.split('.').pop() || 'mp3').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp3';
+      audioPath = 'notes/'+id+'_audio.'+ext;
+      const aref = ref(storage, audioPath);
+      await uploadBytes(aref, audioFile, { contentType: audioFile.type || 'audio/mpeg' });
+      audio = await getDownloadURL(aref);
+    }catch(e){
+      console.error('audio upload error', e);
+      audio = null; audioPath = null;
+      errBox.textContent = 'No se pudo subir el audio. Se guardó la nota sin audio.';
+      errBox.style.display = 'block';
+    }
+  }
+  const obj = { authorUid:auth.currentUser.uid, title:title, body:body, audio:audio, audioPath:audioPath, createdAt:Date.now() };
   await fAdd('notes', id, obj);
+  btn.textContent = 'Guardar'; btn.disabled = false;
   document.getElementById('formNote').hidden = true;
+  audioInput.value = '';
   document.getElementById('nTitle').value=''; document.getElementById('nBody').value='';
 }
 
@@ -1023,7 +1060,7 @@ function renderGustos(){
 }
 
 function likeTag(g){
-  const tint = TINTS[Math.abs(g.createdAt) % 3];
+  const tint = TINTS[hashStr(g.id) % TINTS.length];
   return '<div class="tag-like" style="--tint:'+tint+';" data-id="'+g.id+'">'+
     '<div class="phrase">'+esc(g.text)+'</div>'+
     '<div class="meta-row"><span class="who">— '+esc(authorName(g.authorUid))+'</span>'+
@@ -1124,60 +1161,18 @@ function bindDeletes(section){
             try{ await deleteObject(ref(storage, item.audioPath)); }catch(e){}
           }
         }
+        if(section==='notas'){
+          const nItem = state[section].find(function(x){ return x.id===id; });
+          if(nItem && nItem.audioPath){
+            try{ await deleteObject(ref(storage, nItem.audioPath)); }catch(e){}
+          }
+        }
         await fDelete(COLLECTIONS[section], id);
       });
       slot.querySelector('[data-no]').addEventListener('click', function(){ slot.innerHTML=''; });
     });
   });
 }
-
-  /* =====================================================================
-   NOTIFICACIONES POR WHATSAPP (CallMeBot) - bloque 100% independiente.
-   No modifica ninguna función existente, solo escucha lo que ya pasa.
-   Activación: ver instrucciones en callmebot.com (sección WhatsApp).
-===================================================================== */
-const WHATSAPP_NOTIFY = {
-  enabled: true,
-  phone: '+5491128701302',
-  apikey: '894263'
-};
-function notifyWhatsApp(text){
-  if(!WHATSAPP_NOTIFY.enabled) return;
-  if(!WHATSAPP_NOTIFY.phone || WHATSAPP_NOTIFY.phone.indexOf('PEGA_') === 0) return;
-  if(!WHATSAPP_NOTIFY.apikey || WHATSAPP_NOTIFY.apikey.indexOf('PEGA_') === 0) return;
-  const url = 'https://api.callmebot.com/whatsapp.php?phone='+encodeURIComponent(WHATSAPP_NOTIFY.phone)+
-              '&text='+encodeURIComponent(text)+
-              '&apikey='+encodeURIComponent(WHATSAPP_NOTIFY.apikey);
-  fetch(url, { mode:'no-cors' }).catch(function(e){ console.warn('notifyWhatsApp falló', e); });
-}
-const WA_LABELS = { moments:'un momento', notes:'una nota', songs:'una canción', likes:'una frase', plans:'un plan' };
-let waListenersReady = false;
-onAuthStateChanged(auth, async function(waUser){
-  if(!waUser) return;
-  let nombre = 'Alguien';
-  try{
-    const metaSnap = await getDoc(doc(db,'meta','config'));
-    if(metaSnap.exists() && metaSnap.data().names && metaSnap.data().names[waUser.uid]) nombre = metaSnap.data().names[waUser.uid];
-  }catch(e){}
-  notifyWhatsApp('🔑 '+nombre+' entró al cajón de recuerdos.');
-
-  if(waListenersReady) return;
-  waListenersReady = true;
-  Object.keys(WA_LABELS).forEach(function(colName){
-    let first = true;
-    onSnapshot(collection(db, colName), function(snap){
-      if(first){ first = false; return; }
-      snap.docChanges().forEach(function(change){
-        if(change.type !== 'added') return;
-        const d = change.doc.data();
-        getDoc(doc(db,'meta','config')).then(function(metaSnap2){
-          const who = (d.authorUid && metaSnap2.exists() && metaSnap2.data().names && metaSnap2.data().names[d.authorUid]) || 'Alguien';
-          notifyWhatsApp('✨ '+who+' agregó '+(WA_LABELS[colName]||'algo nuevo')+' en el cajón.');
-        });
-      });
-    }, function(err){ console.warn('WA listener', colName, err); });
-  });
-});
 
 </script>
 </body>
