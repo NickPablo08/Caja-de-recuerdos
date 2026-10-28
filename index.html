@@ -327,8 +327,73 @@
     main#tabContent{ padding:36px 24px 50px; }
   }
 
+  /* ---------- pantallazo de cumpleaños ---------- */
+  .bday{
+    position:fixed; inset:0; z-index:100; display:flex; padding:28px 20px; overflow-y:auto;
+    background:radial-gradient(ellipse at 50% 0%, #FBEDE8 0%, #F1DCDF 48%, #EBD3C4 100%);
+    text-align:center; opacity:0; transition:opacity .6s ease;
+  }
+  .bday.show{ opacity:1; }
+  .bday.leaving{ opacity:0; }
+  .bday-inner{ margin:auto; width:100%; max-width:440px; position:relative; z-index:2; }
+  .bday.show .bday-inner > *{ animation:bdayUp .8s ease both; }
+  .bday.show .bday-inner > *:nth-child(2){ animation-delay:.12s; }
+  .bday.show .bday-inner > *:nth-child(3){ animation-delay:.24s; }
+  .bday.show .bday-inner > *:nth-child(4){ animation-delay:.4s; }
+  .bday.show .bday-inner > *:nth-child(5){ animation-delay:.6s; }
+  @keyframes bdayUp{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:translateY(0);} }
+  .bday-title{
+    font-family:'Fraunces',serif; font-style:italic; font-weight:500;
+    font-size:clamp(2.4rem,10vw,3.5rem); line-height:1.08; margin:12px 0 12px; color:var(--ink);
+  }
+  .bday-title span{ color:var(--rose); }
+  .bday-sub{ color:var(--ink-soft); font-size:1.05rem; line-height:1.55; }
+  .bday-stage{
+    position:relative; width:min(72vw,300px); aspect-ratio:4/5; margin:30px auto 30px;
+    cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:pan-y;
+  }
+  .bday-slide{
+    position:absolute; inset:0; margin:0; background:var(--paper); border-radius:4px;
+    box-shadow:0 16px 34px rgba(var(--shadow),0.24);
+    opacity:0; transform:rotate(var(--rot,0deg)) scale(.94);
+    transition:opacity .9s ease, transform .9s ease;
+  }
+  .bday-slide.active{ opacity:1; transform:rotate(var(--rot,0deg)) scale(1); }
+  .bday-slide::before{
+    content:''; position:absolute; top:-9px; left:50%; width:56px; height:19px; z-index:2;
+    background:rgba(190,145,66,0.55); transform:translateX(-50%) rotate(-2deg);
+  }
+  .bday-slide img{
+    position:absolute; top:10px; left:10px; width:calc(100% - 20px); height:calc(100% - 50px);
+    object-fit:cover; border-radius:2px; background:var(--paper-2);
+  }
+  .bday-slide figcaption{
+    position:absolute; left:12px; right:12px; bottom:10px; text-align:center;
+    font-family:'Fraunces',serif; font-size:.98rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .bday-heart{ width:84px; height:84px; margin:60px auto; color:var(--rose); animation:bob 3s ease-in-out infinite; }
+  .bday-heart svg{ width:100%; height:100%; }
+  .bday-confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:1; }
+  .bday-confetti i{
+    position:absolute; top:-16px; border-radius:2px; opacity:.85;
+    animation:bdayFall linear infinite;
+  }
+  @keyframes bdayFall{ 0%{ transform:translateY(-6vh) rotate(0deg);} 100%{ transform:translateY(112vh) rotate(540deg);} }
+  .bday.show .bday-inner > *:nth-child(6){ animation-delay:.6s; }
+  .bday.show .bday-inner > .bday-heart{ animation:bdayUp .8s ease .4s both, bob 3s ease-in-out 1.2s infinite; }
+  .bday-heart svg{ fill:rgba(193,123,132,0.22); }
+  .bday-count{
+    position:absolute; left:0; right:0; bottom:-26px; pointer-events:none;
+    font-family:'Space Mono',monospace; font-size:.68rem; letter-spacing:.08em; color:var(--ink-soft);
+  }
+  .bday-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; margin:16px 0; }
+  .bday-thumb{ position:relative; aspect-ratio:1; border-radius:6px; overflow:hidden; background:var(--paper-2); }
+  .bday-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .bday-thumb .icon-btn{ position:absolute; top:4px; right:4px; background:rgba(251,248,241,0.92); border-radius:50%; }
+
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+    .bday-confetti{ display:none; }
   }
 </style>
 </head>
@@ -460,7 +525,7 @@ const COLLECTIONS = { momentos:'moments', notas:'notes', canciones:'songs', gust
 const state = {
   meta:null,
   tab:'inicio',
-  momentos:[], notas:[], canciones:[], gustos:[], planes:[],
+  momentos:[], notas:[], canciones:[], gustos:[], planes:[], birthday:[],
   loaded:{},
   listenersStarted:false
 };
@@ -535,6 +600,7 @@ function startListeners(){
     const unsub = onSnapshot(q, function(snap){
       state[section] = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
       state.loaded[section] = true;
+      if(section==='momentos') refreshBdayCarousel();
       if(state.tab === sectionToTab(section)) renderCurrentTab();
       if(state.tab === 'inicio') renderInicio();
     }, function(err){ console.error('listener error', section, err); });
@@ -549,6 +615,16 @@ function startListeners(){
     }
   });
   unsubList.push(unsubMeta);
+  const unsubBday = onSnapshot(query(collection(db,'birthday'), orderBy('createdAt','asc')), function(snap){
+    state.birthday = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    state.loaded.birthday = true;
+    refreshBdayCarousel();
+  }, function(err){
+    console.error('listener error birthday', err);
+    state.loaded.birthday = true;
+    refreshBdayCarousel();
+  });
+  unsubList.push(unsubBday);
 }
 function sectionToTab(s){
   return {momentos:'momentos', notas:'notas', canciones:'musica', gustos:'gustos', planes:'futuro'}[s];
@@ -683,6 +759,7 @@ function enterApp(){
   if(!state.listenersStarted){ state.listenersStarted = true; startListeners(); }
   renderTabs();
   switchTab('inicio');
+  maybeShowBirthday();
 }
 function updateBrand(){
   const names = (state.meta && state.meta.names) ? Object.values(state.meta.names) : [];
@@ -1152,6 +1229,282 @@ async function togglePlan(id){
   const p = state.planes.find(function(x){ return x.id===id; });
   if(!p) return;
   await fUpdate('plans', id, { done: !p.done, doneAt: !p.done ? Date.now() : null });
+}
+
+/* ---------------- CUMPLEAÑOS: pantallazo + carrusel ---------------- */
+/* Se muestra solo entre "start" y "end" (hora local de quien mira).
+   Pasada esa fecha la página vuelve sola a la de siempre.
+   Para probarlo cualquier día: agregá ?cumple=1 al link. Para apagarlo: ?cumple=0.
+   Para sumar fotos extra: ?cumple=editar */
+const BDAY = {
+  start: new Date(2026, 9, 28, 0, 0, 0),
+  end:   new Date(2026, 9, 29, 23, 59, 59),
+  eyebrow: '28 de octubre',
+  title: 'Feliz cumple, <span>mi amor</span>',
+  sub: 'Gracias por todos los momentos compartidos.',
+  autoMs: 4200
+};
+let bdayInit = false;
+let bdayState = null;
+
+function bdayParam(){
+  try{ return new URLSearchParams(location.search).get('cumple'); }catch(e){ return null; }
+}
+function bdayActive(){
+  const p = bdayParam();
+  if(p==='0' || p==='editar') return false;
+  if(p==='1') return true;
+  const now = new Date();
+  return now >= BDAY.start && now <= BDAY.end;
+}
+function maybeShowBirthday(){
+  if(bdayInit) return;
+  bdayInit = true;
+  if(bdayParam()==='editar'){ openBdayEditor(); return; }
+  if(bdayActive()) showBirthday();
+}
+
+/* fotos del carrusel: las de Momentos (en orden cronológico) + las extras */
+function bdaySlides(){
+  const out = [];
+  state.momentos.forEach(function(m){
+    if(!m.image) return;
+    const t = m.date ? Date.parse(m.date) : NaN;
+    out.push({ url:m.image, cap:m.title||'', t: isNaN(t) ? (m.createdAt||0) : t });
+  });
+  (state.birthday||[]).forEach(function(b){
+    if(b.url) out.push({ url:b.url, cap:b.cap||'', t:b.createdAt||0 });
+  });
+  out.sort(function(a,b){ return a.t - b.t; });
+  return out;
+}
+
+function showBirthday(){
+  closeBirthday(true);
+  const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const colors = ['#C17B84','#BE9142','#7E9179','#E8B9B1','#D9A98C','#B58CA6'];
+  let conf = '';
+  for(let i=0;i<34;i++){
+    const w = 6 + Math.random()*6, h = 9 + Math.random()*8;
+    conf += '<i style="left:'+(Math.random()*100).toFixed(1)+'%;width:'+w.toFixed(1)+'px;height:'+h.toFixed(1)+
+            'px;background:'+colors[i%colors.length]+';animation-duration:'+(7+Math.random()*6).toFixed(1)+
+            's;animation-delay:-'+(Math.random()*12).toFixed(1)+'s;"></i>';
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'bday'; wrap.id = 'bday';
+  wrap.setAttribute('role','dialog'); wrap.setAttribute('aria-modal','true'); wrap.setAttribute('aria-label','Feliz cumpleaños');
+  wrap.innerHTML =
+    '<div class="bday-confetti" aria-hidden="true">'+conf+'</div>'+
+    '<div class="bday-inner">'+
+      '<span class="eyebrow">'+BDAY.eyebrow+'</span>'+
+      '<h1 class="bday-title">'+BDAY.title+'</h1>'+
+      '<p class="bday-sub">'+BDAY.sub+'</p>'+
+      '<div class="bday-stage" id="bdayStage" hidden>'+
+        '<figure class="bday-slide"><img alt="" draggable="false"><figcaption></figcaption></figure>'+
+        '<figure class="bday-slide"><img alt="" draggable="false"><figcaption></figcaption></figure>'+
+        '<div class="bday-count" id="bdayCount"></div>'+
+      '</div>'+
+      '<div class="bday-heart" id="bdayHeart" aria-hidden="true" hidden>'+ICON.heart+'</div>'+
+      '<button class="btn" id="bdayEnter">Entrar al cajón</button>'+
+    '</div>';
+  document.body.appendChild(wrap);
+  document.body.style.overflow = 'hidden';
+  bdayState = { slides:[], idx:0, front:0, token:0, timer:null, reduce:reduce, x0:null };
+
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ wrap.classList.add('show'); }); });
+  document.getElementById('bdayEnter').addEventListener('click', function(){ closeBirthday(false); });
+  const stage = document.getElementById('bdayStage');
+  stage.addEventListener('pointerdown', function(e){ if(bdayState) bdayState.x0 = e.clientX; });
+  stage.addEventListener('pointercancel', function(){ if(bdayState) bdayState.x0 = null; });
+  stage.addEventListener('pointerup', function(e){
+    if(!bdayState || bdayState.x0 == null) return;
+    const dx = e.clientX - bdayState.x0;
+    bdayState.x0 = null;
+    bdayGo(dx > 40 ? -1 : 1);   /* deslizar a la derecha = anterior; tocar o deslizar a la izquierda = siguiente */
+  });
+  document.addEventListener('keydown', bdayKey);
+  refreshBdayCarousel();
+  try{ document.getElementById('bdayEnter').focus({preventScroll:true}); }catch(e){}
+}
+
+function bdayKey(e){
+  if(!bdayState) return;
+  if(e.key==='ArrowRight') bdayGo(1);
+  else if(e.key==='ArrowLeft') bdayGo(-1);
+  else if(e.key==='Escape') closeBirthday(false);
+}
+
+function refreshBdayCarousel(){
+  renderBdayGrid();
+  const s = bdayState;
+  if(!s) return;
+  const stage = document.getElementById('bdayStage');
+  const heart = document.getElementById('bdayHeart');
+  if(!stage || !heart) return;
+  const had = s.slides.length;
+  s.slides = bdaySlides();
+  const has = s.slides.length > 0;
+  stage.hidden = !has;
+  heart.hidden = has || !(state.loaded.momentos && state.loaded.birthday);
+  if(!has){ bdayStopAuto(); return; }
+  if(had === 0){ bdayShow(0); }
+  else { if(s.idx >= s.slides.length) s.idx = 0; bdayCount(); }
+  bdayStartAuto();
+}
+
+function bdayShow(i){
+  const s = bdayState;
+  if(!s || !s.slides.length) return;
+  const n = s.slides.length;
+  s.idx = ((i % n) + n) % n;
+  const slide = s.slides[s.idx];
+  const figs = document.querySelectorAll('#bdayStage .bday-slide');
+  if(figs.length < 2) return;
+  const cur = figs[s.front], nxt = figs[1 - s.front];
+  const img = nxt.querySelector('img');
+  const token = ++s.token;
+  let done = false;
+  function apply(){
+    if(done || !bdayState || s.token !== token) return;
+    done = true;
+    nxt.style.setProperty('--rot', (Math.random()*5 - 2.5).toFixed(1)+'deg');
+    nxt.querySelector('figcaption').textContent = slide.cap || '';
+    nxt.classList.add('active');
+    cur.classList.remove('active');
+    s.front = 1 - s.front;
+  }
+  img.onload = apply; img.onerror = apply;
+  img.src = slide.url;
+  if(img.complete && img.naturalWidth) apply();
+  bdayCount();
+  if(n > 1){ const pre = new Image(); pre.src = s.slides[(s.idx+1) % n].url; }
+}
+function bdayCount(){
+  const s = bdayState, c = document.getElementById('bdayCount');
+  if(!s || !c) return;
+  c.textContent = s.slides.length > 1 ? ((s.idx+1)+' / '+s.slides.length) : '';
+}
+function bdayGo(d){
+  if(!bdayState || !bdayState.slides.length) return;
+  bdayShow(bdayState.idx + d);
+  bdayStartAuto();
+}
+function bdayStartAuto(){
+  const s = bdayState;
+  if(!s) return;
+  bdayStopAuto();
+  if(s.reduce || s.slides.length < 2) return;
+  s.timer = setInterval(function(){ bdayShow(s.idx + 1); }, BDAY.autoMs);
+}
+function bdayStopAuto(){
+  if(bdayState && bdayState.timer){ clearInterval(bdayState.timer); bdayState.timer = null; }
+}
+function closeBirthday(instant){
+  bdayStopAuto();
+  document.removeEventListener('keydown', bdayKey);
+  bdayState = null;
+  document.body.style.overflow = '';
+  const w = document.getElementById('bday');
+  if(!w) return;
+  if(instant){ w.remove(); return; }
+  w.classList.add('leaving');
+  setTimeout(function(){ w.remove(); }, 650);
+}
+
+/* ---- panel para sumar fotos extra (link con ?cumple=editar) ---- */
+function closeBdayEditor(){
+  const e = document.getElementById('bdayEditor');
+  if(e) e.remove();
+}
+function openBdayEditor(){
+  closeBdayEditor();
+  const wrap = document.createElement('div');
+  wrap.id = 'bdayEditor'; wrap.className = 'modal-back';
+  wrap.innerHTML =
+    '<div class="paper-card" style="max-width:560px;">'+
+      '<span class="eyebrow">sorpresa de cumple</span>'+
+      '<h2 style="margin:8px 0 6px;">Fotos para el carrusel</h2>'+
+      '<p class="hint">En el carrusel van todas las fotos de Momentos, más las que sumes acá. Podés elegir muchas a la vez.</p>'+
+      '<div class="field"><label>Elegir fotos</label><input type="file" accept="image/*" multiple id="bdayFiles"></div>'+
+      '<div class="error-msg" id="bdayErr"></div>'+
+      '<div id="bdayProg" style="font-size:.8rem; color:var(--ink-soft); margin-bottom:10px;"></div>'+
+      '<div class="form-actions"><button class="btn btn-small" id="bdayUp">Subir fotos</button></div>'+
+      '<div class="bday-grid" id="bdayGrid"></div>'+
+      '<div class="form-actions"><button class="btn btn-ghost btn-small" id="bdayPreview">Ver la sorpresa</button>'+
+      '<button class="btn btn-ghost btn-small" id="bdayCloseEd">Cerrar</button></div>'+
+    '</div>';
+  document.body.appendChild(wrap);
+  document.getElementById('bdayUp').addEventListener('click', uploadBdayPhotos);
+  document.getElementById('bdayCloseEd').addEventListener('click', closeBdayEditor);
+  document.getElementById('bdayPreview').addEventListener('click', function(){ closeBdayEditor(); showBirthday(); });
+  renderBdayGrid();
+}
+function renderBdayGrid(){
+  const g = document.getElementById('bdayGrid');
+  if(!g) return;
+  const list = state.birthday || [];
+  if(!list.length){
+    g.innerHTML = '<div class="empty-state" style="grid-column:1/-1; padding:18px;">Todavía no sumaste fotos extra.</div>';
+    return;
+  }
+  g.innerHTML = list.map(function(b){
+    return '<div class="bday-thumb"><img src="'+esc(b.url)+'" alt="" loading="lazy">'+
+           '<button class="icon-btn" data-bdel="'+esc(b.id)+'" title="Quitar">'+ICON.x+'</button></div>';
+  }).join('');
+  Array.prototype.forEach.call(g.querySelectorAll('[data-bdel]'), function(btn){
+    btn.addEventListener('click', function(){ deleteBdayPhoto(btn.getAttribute('data-bdel')); });
+  });
+}
+async function deleteBdayPhoto(id){
+  const item = (state.birthday||[]).find(function(x){ return x.id===id; });
+  if(!item) return;
+  if(!window.confirm('¿Quitar esta foto del carrusel?')) return;
+  if(item.path){ try{ await deleteObject(ref(storage, item.path)); }catch(e){} }
+  await fDelete('birthday', id);
+}
+async function uploadBdayPhotos(){
+  const input = document.getElementById('bdayFiles');
+  const errBox = document.getElementById('bdayErr');
+  const prog = document.getElementById('bdayProg');
+  const btn = document.getElementById('bdayUp');
+  const files = Array.prototype.slice.call(input.files || []);
+  errBox.style.display = 'none';
+  if(!files.length){
+    errBox.textContent = 'Elegí al menos una foto.'; errBox.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; input.disabled = true;
+  const total = files.length;
+  let done = 0, failed = 0;
+  prog.textContent = 'Subiendo 0 de '+total+'…';
+  const queue = files.slice();
+  async function worker(){
+    while(queue.length){
+      const f = queue.shift();
+      try{
+        const dataUrl = await compressImage(f, 1400, 0.8);
+        const id = uid();
+        const path = 'birthday/'+id+'.jpg';
+        const sref = ref(storage, path);
+        await uploadString(sref, dataUrl, 'data_url');
+        const url = await getDownloadURL(sref);
+        const ok = await fAdd('birthday', id, { authorUid:auth.currentUser.uid, url:url, path:path, createdAt:Date.now() });
+        if(!ok){ try{ await deleteObject(sref); }catch(e){} throw new Error('no se pudo guardar en Firestore'); }
+      }catch(e){
+        failed++;
+        console.error('bday upload error', f && f.name, e);
+      }
+      done++;
+      prog.textContent = 'Subiendo '+done+' de '+total+'…';
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  input.value = ''; input.disabled = false; btn.disabled = false;
+  prog.textContent = (total-failed)+' de '+total+' fotos subidas.';
+  if(failed){
+    errBox.textContent = failed+' foto(s) no se pudieron subir. Probá de nuevo con esas.';
+    errBox.style.display = 'block';
+  }
 }
 
 /* ---------------- EDITAR (momentos y notas) ---------------- */
